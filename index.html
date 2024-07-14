@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css">
+    <title>Pokedex</title>
+</head>
+
+<body>
+    <h1>Pokedex</h1>
+    <!-- Filter container -->
+    <div class="filter-container">
+        <label for="typeFilter">Filter by Type:</label>
+        <select id="typeFilter">
+            <option value="all">All Types</option>
+            <!-- Add options for each Pokémon type -->
+            <option value="fire">Fire</option>
+            <option value="grass">Grass</option>
+            <option value="electric">Electric</option>
+            <option value="water">Water</option>
+            <option value="ground">Ground</option>
+            <option value="fairy">Fairy</option>
+            <option value="rock">Rock</option>
+            <option value="poison">Poison</option>
+            <option value="bug">Bug</option>
+            <option value="dragon">Dragon</option>
+            <option value="psychic">Psychic</option>
+            <option value="flying">Flying</option>
+            <option value="fighting">Fighting</option>
+            <option value="normal">Normal</option>
+            <!-- Add other types as needed -->
+        </select>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search by Name, ID, or Type">
+        <button onclick="search()">Search</button>
+        <button id="clearSearch">x</button>
+    </div>
+
+    <!-- Scroll to top button -->
+    <button class="scroll-to-top" onclick="scrollToTop()">&#11014;</button>
+
+    <div class="poke-container" id="poke-container"></div>
+    <script>
+        const pokeContainer = document.getElementById("poke-container");
+        const pokemonCount = 1025;
+        const colors = {
+            fire: "#FDDFDF",
+            grass: "#DEFDE0",
+            electric: "#FCF7DE",
+            water: "#DEF3FD",
+            ground: "#f4e7da",
+            rock: "#d5d5d4",
+            fairy: "#fceaff",
+            poison: "#98d7a5",
+            bug: "#f8d5a3",
+            dragon: "#97b3e6",
+            psychic: "#eaeda1",
+            flying: "#D6EAF8",
+            fighting: "#E6E0D4",
+            normal: "#85929E",
+        };
+        const mainTypes = Object.keys(colors);
+
+        const createPokemonCard = (pokemon) => {
+            const pokemonElement = document.createElement("div");
+            pokemonElement.classList.add("pokemon");
+            const name = pokemon.name[0].toUpperCase() + pokemon.name.slice(1);
+            const id = pokemon.id.toString().padStart(3, "0");
+            const pokeTypes = pokemon.types.map((type) => type.type.name);
+            const type = mainTypes.find((type) => pokeTypes.indexOf(type) > -1);
+            const color = colors[type];
+            pokemonElement.style.backgroundColor = color;
+            const pokemonInnerHTML = `
+                <div class="img-container">
+                    <img
+                        src="${pokemon.sprites.front_default}"
+                        alt=""
+                    />
+                </div>
+                <div class="info">
+                    <span class="number">#${id}</span>
+                    <h3 class="name"><a href="https://www.pokemon.com/us/pokedex/${name}" target="_blank">${name}</a></h3>
+                    <small class="type">Type: <span>${type}</span></small>
+                </div>
+            `;
+            pokemonElement.innerHTML = pokemonInnerHTML;
+            pokeContainer.appendChild(pokemonElement);
+        };
+
+        const getPokemon = async (id) => {
+            const url = `https://pokeapi.co/api/v2/pokemon/${id}`;
+            const res = await fetch(url);
+            return await res.json();
+        };
+
+        const fetchAndDisplayPokemons = async () => {
+            const batchSize = 50; // Fetch 50 Pokémon at a time
+            const allPokemons = [];
+            for (let i = 1; i <= pokemonCount; i += batchSize) {
+                const promises = [];
+                for (let j = i; j < i + batchSize && j <= pokemonCount; j++) {
+                    promises.push(getPokemon(j));
+                }
+                const batchPokemons = await Promise.all(promises);
+                allPokemons.push(...batchPokemons);
+            }
+            allPokemons.sort((a, b) => a.id - b.id);
+            allPokemons.forEach(createPokemonCard);
+        };
+
+        fetchAndDisplayPokemons();
+
+        // Search with debounce
+        const searchInput = document.getElementById('searchInput');
+        const clearSearch = document.getElementById('clearSearch');
+        let debounceTimeout;
+
+        searchInput.addEventListener('input', () => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                const query = searchInput.value.toLowerCase().trim();
+                filterPokemon(query);
+            }, 300); // 300ms debounce
+        });
+
+        clearSearch.addEventListener('click', () => {
+            searchInput.value = '';
+            filterPokemon('');
+        });
+
+        const filterPokemon = (query) => {
+            const allPokemonCards = document.querySelectorAll('.pokemon');
+            allPokemonCards.forEach(card => {
+                const cardName = card.querySelector('.name a').textContent.toLowerCase();
+                const cardId = card.querySelector('.number').textContent.toLowerCase();
+                const cardType = card.querySelector('.type span').textContent.toLowerCase();
+                if (cardName.includes(query) || cardId.includes(query) || cardType.includes(query)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        };
+
+        // Filter Pokémon based on selected type
+        const typeFilter = document.getElementById('typeFilter');
+        typeFilter.addEventListener('change', () => {
+            const selectedType = typeFilter.value;
+            const allPokemonCards = document.querySelectorAll('.pokemon');
+            allPokemonCards.forEach(card => {
+                const cardType = card.querySelector('.type span').textContent.toLowerCase();
+                if (selectedType === 'all' || selectedType === cardType) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+
+        // Scroll top to bottom
+        const scrollToTop = () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        };
+
+        // Show/hide scroll to top button based on scroll position
+        window.addEventListener('scroll', () => {
+            const scrollButton = document.querySelector('.scroll-to-top');
+            if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+                scrollButton.style.display = 'block';
+            } else {
+                scrollButton.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+
+</html>
